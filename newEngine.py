@@ -1,4 +1,4 @@
-class GameState(): 
+class GameEngine(): 
     def __init__ (self):        
         #initial state of board
         self.board = [
@@ -93,7 +93,7 @@ class GameState():
                             break
                     else: 
                         if (0 <= i <= 3 and piece_type == "R") or (4 <= i <= 7 and piece_type == "B") or\
-                            (i == 1 and 6 <= j <= 7 and piece[0:1] == "bP") or (i == 1 and 4 <= j <= 5 and piece [0:1] == "wP") or\
+                            (i == 1 and 6 <= j <= 7 and piece[0] != ally and piece[1] == "P") or (i == 1 and 4 <= j <= 5 and piece[0] != ally and piece [1] == "P") or\
                             (j == 1 and piece_type == "K") or piece_type == "Q" :
                             # print ("hmm")
                             if possiblePins == ():
@@ -142,6 +142,7 @@ class GameState():
                         if moves[i] not in validMoves:
                             moves.remove(moves[i]) 
             
+            #have to check that the king's possible moves are valid
             moves.extend(self.king(r, c))
         else: 
             moves = self.getPossibleMoves()

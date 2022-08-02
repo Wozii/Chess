@@ -45,7 +45,7 @@ def main ():
     screen = pg.display.set_mode ([1000, 800])  
     running = True
     screen.fill((224,238,238))
-    gs = newEngine.GameState()
+    gs = newEngine.GameEngine()
     loadImages()
     sq_selected = ()
     playerClicks = []
