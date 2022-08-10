@@ -1,3 +1,6 @@
+from cv2 import insertChannel
+
+
 class GameEngine(): 
     def __init__ (self):        
         #initial state of board
@@ -86,7 +89,7 @@ class GameEngine():
                 if 0 <= row <= 7 and 0 <= col <= 7:
                     piece = self.board [row][col]
                     piece_type = piece [1] 
-                    if piece [0] == ally:
+                    if piece [0] == ally and piece[1] != 'K':
                         if possiblePins == (): 
                             possiblePins = (row, col, direc [i][0], direc [i][1])
                         else: 
@@ -119,7 +122,7 @@ class GameEngine():
 
         if self.inCheck:
             print("passed check check")
-            if len(self.checkPieces) == 1: 
+            if len(self.checkPieces) >= 1: 
                 print("one check piece")
                 moves = self.getPossibleMoves()
                 check = self.checkPieces[0]
@@ -127,20 +130,24 @@ class GameEngine():
                 checkC = check[1]
                 checkP = self.board[checkR][checkC][1]
 
+                #if knight must capture knight
                 if checkP == "N":
                     print("check piece knight")
                     moves = [(checkR, checkC)]
                 else:
                     print("check piece other")
                     d1, d2 = check[2], check[3] 
+                    
+                    # append everything in check direction
                     for i in range (1, 8):
                         validMoves.append((r + d1*i, c + d2*i))
                         if r + d1*i == checkR and c + d2*i == checkC: 
                             break
                     
-                    for i in range (len(moves) - 1, -1, -1):
-                        if moves[i] not in validMoves:
-                            moves.remove(moves[i]) 
+                # afterwards, remove moves not in valid moves
+                for i in range (len(moves) - 1, -1, -1):
+                    if moves[i] not in validMoves:
+                        moves.remove(moves[i]) 
             
             #have to check that the king's possible moves are valid
             moves.extend(self.king(r, c))
@@ -167,11 +174,44 @@ class GameEngine():
 
 
 #############################################################################################################
+    def king(self, r, c):
+        moves = []
+        direcs = [(1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (1, -1), (-1, 1), (-1, -1)]
+    
+        for i in range(len(direcs)):
+            direc = direcs[i]
+
+            if 0 <= r + direc[0] <= 7 and 0 <= c + direc[1] <= 7: 
+                if self.checkMove(r + direc[0], c + direc[1])!= False:
+                    moves.append((r + direc[0], c + direc[1]))
+        
+        if self.inCheck:
+            for i in range(len(moves)):
+
+                # move the king to make sure it's not in check afterwards
+                if self.whiteTurn: 
+                    self.whiteKing = moves[i]
+                else: 
+                    self.blackKing = moves[i];
+
+                check, checkP, pins = self.getCheckPins()    
+                if check: 
+                    moves.remove(moves[i]);
+            
+            # restore king's og position
+            if self.whiteTurn: 
+                self.whiteKing = (r, c)
+            else: 
+                self.blackKing = (r, c)
+        
+        return moves    
+    
     def pawn(self, r, c):
         direc = 1
         moves = []
 
         pinned = False
+        # add case where if pawn eats enemy and blocks check
         for i in range(len(self.pins)):
             pin = self.pins[i]
             if r == pin[0] and c == pin[1]:
@@ -282,19 +322,6 @@ class GameEngine():
 
         return moves
 
-    def king(self, r, c):
-        moves = []
-        pinned = False
-        direcs = [(1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (1, -1), (-1, 1), (-1, -1)]
-
-        for i in range(len(direcs)):
-            direc = direcs[i]
-
-            if 0 <= r + direc[0] <= 7 and 0 <= c + direc[1] <= 7 and not pinned: 
-                if self.checkMove(r + direc[0], c + direc[1])!= False:
-                    moves.append((r + direc[0], c + direc[1]))
-        
-        return moves
 
     def queen(self, r, c):
         moves = []
