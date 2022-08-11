@@ -1,18 +1,24 @@
 from cv2 import insertChannel
 
+'''
+TO DO LIST: 
+    - test en-passant
+    - test castling 
+    - probably play a game lol
+'''
 
 class GameEngine(): 
     def __init__ (self):        
-        #initial state of board
+        # initial state of board
         self.board = [
-            ["bR", "bN", "bB", "bQ", "bK", "bB", "bN", "bR"],
+            ["bR1", "bN", "bB", "bQ", "bK1", "bB", "bN", "bR1"],
             ["bP2", "bP2", "bP2", "bP2", "bP2", "bP2", "bP2", "bP2"],
             ["--", "--", "--", "--", "--", "--", "--", "--"], 
             ["--", "--", "--", "--", "--", "--", "--", "--"],
             ["--", "--", "--", "--", "--", "--", "--", "--"],
             ["--", "--", "--", "--", "--", "--", "--", "--"],
             ["wP2", "wP2", "wP2", "wP2", "wP2", "wP2", "wP2", "wP2"],
-            ["wR", "wN", "wB", "wQ", "wK", "wB", "wN", "wR"]
+            ["wR1", "wN", "wB", "wQ", "wK1", "wB", "wN", "wR1"]
         ]
         
         self.moveMethods = {'P': self.pawn, 'R': self.rook, 'N': self.knight, 'B': self.bishop, 'K': self.king, 'Q': self.queen}
@@ -32,7 +38,7 @@ class GameEngine():
         startC = start[1]
         endR = end[0]
         endC = end[1]
-        
+
         valid = True
         if len(self.validMoves) != 0:
             if end not in self.validMoves: 
@@ -41,26 +47,41 @@ class GameEngine():
 
         piece = self.board[startR][startC]
         moves = self.moveMethods[piece[1]](startR, startC)
-
+        
+        # pawn en passant set up
+        if piece[1] == 'P': 
+            pDirec = 1 if self.whiteTurn else -1
+                
         if end in moves and valid: 
             print (end, moves)
             self.board[startR][startC] = "--"
-            print(self.board[startR][startC])
+            dest = self.board[endR][endC] # store end sq for en-passant checks.            
             self.board[endR][endC] = piece
+            
+            # en passant case
+            if piece[1] == 'P' and dest == '--':
+                if self.board[endR + pDirec][endC][0] != piece[0] and self.board[endR + pDirec][endC][1] == 'P':
+                    self.board[endR + pDirec][endC] = '--'
+                    print('en-passant')
 
             if piece[1:] == "P2":
                 self.board[endR][endC] = piece.replace("2", "1")
             elif piece[1:] == "P1":
                 self.board[endR][endC] = piece.replace("1", "")
-            elif piece == "wK":
+            elif piece[0:2] == "wK":
                 self.whiteKing = end
-            elif piece == "bK":
+                if piece[1:] == 'K1':
+                    self.board[endR][endC] = piece.replace("1", "")
+            elif piece[0:2] == "bK":
                 self.blackKing = end
+                if piece[1:] == 'K1':
+                    self.board[endR][endC] = piece.replace("1", "")
+            elif piece[1:] == "R1":
+                self.board[endR][endC] = piece.replace("1", "")
             
+
             self.whiteTurn = not self.whiteTurn
             self.after_move()
-
-        
     
     def after_move(self):
         self.inCheck, self.checkPieces, self.pins = self.getCheckPins()
@@ -187,30 +208,79 @@ class GameEngine():
         
         if self.inCheck:
             for i in range(len(moves)):
-
                 # move the king to make sure it's not in check afterwards
                 if self.whiteTurn: 
                     self.whiteKing = moves[i]
                 else: 
-                    self.blackKing = moves[i];
+                    self.blackKing = moves[i]
 
                 check, checkP, pins = self.getCheckPins()    
                 if check: 
-                    moves.remove(moves[i]);
+                    moves.remove(moves[i])
             
             # restore king's og position
             if self.whiteTurn: 
                 self.whiteKing = (r, c)
             else: 
                 self.blackKing = (r, c)
-        
+        else:
+            # castling 
+            if self.board[r][c].find('1') != -1: 
+                if self.board[r][c + 3].find('R1') != -1: 
+                    # king side castle
+                    if self.checkMove(r, c + 1) and self.checkMove(r, c + 2) and self.checkMove(r, c + 3):
+                        temp = 0
+                        if self.whiteTurn: 
+                            for i in range(1, 3):
+                                self.whiteKing = (r, c + i)
+                                check, checkP, pins = self.getCheckPins()
+                                if check: 
+                                    break 
+                                else: 
+                                    temp += 1
+                        else: 
+                            for i in range(1, 3):
+                                self.blackKing = (r, c + i)
+                                check, checkP, pins = self.getCheckPins()
+                                if check: 
+                                    break 
+                                else: 
+                                    temp += 1
+                        
+                        if temp == 2: 
+                            moves.append(r, c + 2)
+                if self.board[r][c - 4].find('R1') != -1:
+                    # queen side castle
+                    if self.checkMove(r, c - 1) and self.checkMove(r, c - 2) and self.checkMove(r, c - 3) and self.checkMove(r, c - 4):
+                        temp = 0
+                        if self.whiteTurn: 
+                            for i in range(1, 3):
+                                self.whiteKing = (r, c - i)
+                                check, checkP, pins = self.getCheckPins()
+                                if check: 
+                                    break 
+                                else: 
+                                    temp += 1
+                        else: 
+                            for i in range(1, 3):
+                                self.blackKing = (r, c - i)
+                                check, checkP, pins = self.getCheckPins()
+                                if check: 
+                                    break 
+                                else: 
+                                    temp += 1
+                        
+                        if temp == 2: 
+                            moves.append(r, c - 2)
+
         return moves    
     
     def pawn(self, r, c):
         direc = 1
         moves = []
-
+        ally = self.board[r][c][0]
         pinned = False
+        
         # add case where if pawn eats enemy and blocks check
         for i in range(len(self.pins)):
             pin = self.pins[i]
@@ -224,18 +294,22 @@ class GameEngine():
             direc = -1
         
         if 0 <= r + direc <= 7:
-            #forward 
+            # forward 
             if self.checkMove(r + direc, c) and (not pinned or (direc, 0) == pinDirec):
                 moves.append((r + direc, c))
-            #take diag right
+            # take diag right and en-passant
             if c + 1 <= 7 and (not pinned or (direc, 1) == pinDirec):
                 if self.checkMove(r + direc, c + 1) == None: 
                     moves.append((r + direc, c + 1))
-            #take diag left
+                elif self.board[r][c + 1][0] != ally and self.board[r][c + 1][1:] == "P1" and self.checkMove(r + direc, c + 1): 
+                    moves.append((r + direc, c + 1))
+            # take diag left and en-passant
             if c - 1 >= 0 and (not pinned or (direc, -1) == pinDirec): 
                 if self.checkMove(r + direc, c - 1) == None: 
                     moves.append((r + direc, c - 1))
-        
+                elif self.board[r][c - 1][0] != ally and self.board[r][c - 1][1:] == "P1" and self.checkMove(r + direc, c - 1): 
+                    moves.append((r + direc, c - 1))    
+
         if self.board[r][c].find("2")!= -1 and 0 <= r + direc*2 <= 7 and (not pinned or (direc, 0) == pinDirec):
             #forward twice
             if self.checkMove(r + direc, c) and self.checkMove(r + direc*2, c):
@@ -321,7 +395,6 @@ class GameEngine():
                     break
 
         return moves
-
 
     def queen(self, r, c):
         moves = []
